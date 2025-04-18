@@ -1,4 +1,5 @@
 import mongoose, { model, Schema, Types } from "mongoose";
+import GradeLevel from "./gradeLevelModel.js";
 
 const userSchema = new Schema(
   {
@@ -13,9 +14,13 @@ const userSchema = new Schema(
       required: true,
       unique: true,
     },
-    gradeLevel: {
-      type: String,
+    gradeLevelId: {
+      type: Number,
       required: true,
+    },
+    gradeLevelRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GradeLevel",
     },
     password: {
       type: String,

@@ -22,11 +22,6 @@ export const auth = (accessRoles = []) => {
     if (parseInt(authUser.changeAccountInfo?.getTime() / 1000) > decoded.iat) {
       return next(new Error("Expired token ,please login again", { cause: 400 }));
     }
-    if (!accessRoles.includes(authUser.role)) {
-      return next(
-        new Error("You aren't authorized to take this action!", { cause: 400 })
-      );
-    }
     req.user = authUser;
     return next();
   });

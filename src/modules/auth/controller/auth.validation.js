@@ -9,7 +9,7 @@ export const authRegisterSchema = joi
 
     name: generalFeilds.name.required(),
     
-    gradeLevel: joi.string().trim().allow("", null),
+    gradeLevelId: joi.number().required(),
     
     gender: joi.string().valid("male", "female").default("male"),
 

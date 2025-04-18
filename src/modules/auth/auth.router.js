@@ -11,6 +11,7 @@ import {
 import { isValid } from "../../middlewares/validation.middleware.js";
 import { auth } from "../../middlewares/auth.middleware.js";
 import { allowedTypesMap, fileUpload } from "../../utils/multerCloudinary.js";
+import userModel from "../../../DB/models/User.model.js";
 
 const router = Router();
 
@@ -52,5 +53,20 @@ router.post(
   isValid(resetPasswordOTPSchema),
   authController.resetPasswordOTP
 );
+
+router.get("/try", auth(), async (req, res) => {
+  try {
+
+    const mySubjects = await userModel.findOne(req.user._id).populate({
+      path: "gradeLevelRef",
+      select: "name subjects -_id" 
+    });
+
+    res.status(200).json(mySubjects);
+  } catch (error) {
+    console.error("❌ Error fetching subjects:", error.message);
+    res.status(500).json({ message: "Error fetching subjects.", error: error.message });
+  }
+});
 
 export default router;

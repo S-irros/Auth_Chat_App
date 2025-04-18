@@ -5,24 +5,23 @@ import { otpEmail } from "../../../utils/Emails/optEmail.js";
 import { compare, Hash } from "../../../utils/Hash&Compare.js";
 import { asyncHandler } from "../../../utils/errorHandling.js";
 import { otp, randomId } from "../../../utils/otpGenerator.js";
-import {
-  generateToken,
-} from "../../../utils/generateAndVerifyToken.js";
+import { generateToken } from "../../../utils/generateAndVerifyToken.js";
 import userModel from "../../../../DB/models/User.model.js";
 import { activationMail } from "../../../utils/Emails/activationMail.js";
 import { emitter } from "../../../utils/eventEmitter.js";
 import { uploadToCloudinary } from "../../../utils/uploadHelper.js";
+import GradeLevel from "../../../../DB/models/gradeLevelModel.js";
 
 // registeration
 export const signUp = asyncHandler(async (req, res, next) => {
-  const { email,password ,name, gender,gradeLevel } = req.body;
+  const { email, password, name, gender, gradeLevelId } = req.body;
 
   const existedUser = await userModel.findOne({ email });
 
   if (existedUser) {
     return next(new Error("Email already exists", { cause: 401 }));
   }
-  
+
   let random;
   let isUnique = false;
 
@@ -38,12 +37,12 @@ export const signUp = asyncHandler(async (req, res, next) => {
       new Error("Please select your profile picture", { cause: 400 })
     );
   }
-    const profilePic = await uploadToCloudinary(
-      req.file,
-      `${process.env.APP_NAME}/User/${random}`,
-      `${random}profilePic`
-    );
-    const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
+  const profilePic = await uploadToCloudinary(
+    req.file,
+    `${process.env.APP_NAME}/User/${random}`,
+    `${random}profilePic`
+  );
+  const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
 
   // Generate activation code
   const activationCode = crypto.randomBytes(64).toString("hex");
@@ -52,16 +51,22 @@ export const signUp = asyncHandler(async (req, res, next) => {
   const hashPassword = Hash({ plainText: password });
 
   // Create the user in the database
+
+  const gradeLevel = await GradeLevel.findOne({ gradeLevelId });
+  if (!gradeLevel) {
+    return next(new Error("Invalid grade level", { cause: 404 }));
+  }
   const createUser = await userModel.create({
-    randomId:random,
-    name, 
+    randomId: random,
+    name,
     gender,
-    gradeLevel,
+    gradeLevelId,
+    gradeLevelRef: gradeLevel._id,
     email,
     password: hashPassword,
     activationCode,
     profilePic,
-    profilePicPublicId
+    profilePicPublicId,
   });
   // Send email asynchronously
   const protocol = req.protocol;
@@ -105,7 +110,7 @@ export const logIn = asyncHandler(async (req, res, next) => {
     );
   }
 
-  if (user.isDeleted || user.isBlocked ) {
+  if (user.isDeleted || user.isBlocked) {
     return next(
       new Error(
         "Your account is suspended or removed. Contact support for assistance.",
@@ -133,17 +138,16 @@ export const logIn = asyncHandler(async (req, res, next) => {
     payload: {
       id: user._id,
       email: user.email,
-      name:user.name
-    }
+      name: user.name,
+    },
   });
 
-  res.cookie("jwt", token , {
-    maxAge:7*24*60*60*1000 ,
-    httpOnly:true ,
-    sameSite:"None",
-    secure:true
-    
-    })
+  res.cookie("jwt", token, {
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: "None",
+    secure: true,
+  });
 
   // Update status (optional, based on your business logic)
   if (user.status !== "Active") {
@@ -168,15 +172,14 @@ export const logIn = asyncHandler(async (req, res, next) => {
 export const logOut = asyncHandler(async (req, res, next) => {
   await userModel.findByIdAndUpdate(
     req.user._id,
-    { availability:"Offline" },
+    { availability: "Offline" },
     { new: true }
   );
-  res.cookie("jwt","", {
-    maxAge:1,
-    sameSite:"None",
-    secure:true
-    
-    })
+  res.cookie("jwt", "", {
+    maxAge: 1,
+    sameSite: "None",
+    secure: true,
+  });
   return res.status(200).json({
     status: "success",
     message: "Logged Out successfully",
@@ -190,12 +193,14 @@ export const activateAcc = asyncHandler(async (req, res, next) => {
     { activationCode: req.params.activationCode },
     {
       isConfirmed: true,
-      $unset: { activationCode: 1 }
+      $unset: { activationCode: 1 },
     }
   );
 
   return user.matchedCount
-    ? res.status(200).send("Congratulations, your account is activated successfully")
+    ? res
+        .status(200)
+        .send("Congratulations, your account is activated successfully")
     : next(new Error("Account not found", { cause: 404 }));
 });
 //====================================================================================================================//
