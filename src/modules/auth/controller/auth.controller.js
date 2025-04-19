@@ -17,9 +17,12 @@ export const signUp = asyncHandler(async (req, res, next) => {
   const { email, password, name, gender, gradeLevelId } = req.body;
 
   const existedUser = await userModel.findOne({ email });
-
   if (existedUser) {
     return next(new Error("Email already exists", { cause: 401 }));
+  }
+
+  if (!["male", "female"].includes(gender.toLowerCase())) {
+    return next(new Error("Gender must be 'male' or 'female'", { cause: 400 }));
   }
 
   let random;
@@ -32,11 +35,11 @@ export const signUp = asyncHandler(async (req, res, next) => {
       isUnique = true;
     }
   }
+
   if (!req.file) {
-    return next(
-      new Error("Please select your profile picture", { cause: 400 })
-    );
+    return next(new Error("Please select your profile picture", { cause: 400 }));
   }
+
   const profilePic = await uploadToCloudinary(
     req.file,
     `${process.env.APP_NAME}/User/${random}`,
@@ -50,24 +53,29 @@ export const signUp = asyncHandler(async (req, res, next) => {
   // Hash password
   const hashPassword = Hash({ plainText: password });
 
-  // Create the user in the database
-
+  // جلب الـ gradeLevel والـ subjects
   const gradeLevel = await GradeLevel.findOne({ gradeLevelId });
   if (!gradeLevel) {
     return next(new Error("Invalid grade level", { cause: 404 }));
   }
+
+  const subjects = gradeLevel.subjects || []; // subjects هنا قايمة من String
+
+  // Create the user in the database
   const createUser = await userModel.create({
     randomId: random,
     name,
-    gender,
+    gender: gender.toLowerCase() === "male" ? 1 : 2,
     gradeLevelId,
     gradeLevelRef: gradeLevel._id,
+    subjects, // تخزين المواد (قايمة من String)
     email,
     password: hashPassword,
     activationCode,
     profilePic,
     profilePicPublicId,
   });
+
   // Send email asynchronously
   const protocol = req.protocol;
   const host = req.headers.host;
@@ -78,13 +86,11 @@ export const signUp = asyncHandler(async (req, res, next) => {
     html,
   });
 
-  // Respond immediately without waiting for the email to be sent
   return res.status(201).json({
     message: "User added successfully. Please check your email for activation.",
     user: createUser._id,
   });
 });
-
 //====================================================================================================================//
 // log in
 
@@ -98,10 +104,10 @@ export const logIn = asyncHandler(async (req, res, next) => {
 
   // Query user by either userName or email
   const user = await userModel
-    .findOne({
-      email,
-    })
-    .select("password isDeleted isBlocked email name isConfirmed");
+    .findOne({ email })
+    .select(
+      "randomId name email password isDeleted isBlocked isConfirmed status availability gender role profilePic profilePicPublicId gradeLevelId subjects"
+    );
 
   // Handle user not found or inactive accounts
   if (!user) {
@@ -123,6 +129,7 @@ export const logIn = asyncHandler(async (req, res, next) => {
       new Error("Please confirm your account to proceed.", { cause: 400 })
     );
   }
+
   // Verify password
   const isPasswordValid = compare({
     plainText: password,
@@ -134,11 +141,24 @@ export const logIn = asyncHandler(async (req, res, next) => {
     );
   }
 
+  // Generate token with all user data
   const token = generateToken({
     payload: {
       id: user._id,
+      randomId: user.randomId,
       email: user.email,
       name: user.name,
+      gradeLevelId: user.gradeLevelId,
+      subjects: user.subjects,
+      status: user.status,
+      availability: user.availability,
+      gender: user.gender,
+      role: user.role,
+      isConfirmed: user.isConfirmed,
+      isDeleted: user.isDeleted,
+      isBlocked: user.isBlocked,
+      profilePic: user.profilePic,
+      profilePicPublicId: user.profilePicPublicId,
     },
   });
 

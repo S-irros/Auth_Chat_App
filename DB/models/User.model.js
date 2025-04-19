@@ -22,6 +22,7 @@ const userSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "GradeLevel",
     },
+    subjects: [{ type: String }],
     password: {
       type: String,
       required: true,
@@ -37,9 +38,9 @@ const userSchema = new Schema(
       enum: ["Online", "Offline"],
     },
     gender: {
-      type: String,
-      default: "male",
-      enum: ["male", "female"],
+      type: Number,
+      default: 1,
+      enum: [1, 2],
     },
     role: {
       type: String,
@@ -58,8 +59,8 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    profilePic:String,
-    profilePicPublicId:String,
+    profilePic: String,
+    profilePicPublicId: String,
     activationCode: String,
     otp: String,
     otpexp: Date,
@@ -68,6 +69,7 @@ const userSchema = new Schema(
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
 userSchema.pre("find", function () {
   this.where({ isDeleted: false });
 });
