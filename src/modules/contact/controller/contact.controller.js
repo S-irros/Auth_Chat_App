@@ -88,13 +88,14 @@ export const getContactsFromDMList = asyncHandler(async (req, res, next) => {
 export const getAllContacts = asyncHandler(async (req, res, next) => {
   const users = await userModel.find(
     { _id: { $ne: req.user._id } },
-    "_id name email profilePic"
+    "_id name email profilePic randomId"
   );
 
   const contacts = users.map((user) => ({
     label: user.name ? `${user.name}` : user.email, 
     value: user._id,
     profilePic: user.profilePic || null,
+    randomId: user.randomId || null,
   }));
 
   res.status(200).json({
