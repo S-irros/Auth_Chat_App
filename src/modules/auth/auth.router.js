@@ -17,7 +17,7 @@ const router = Router();
 
 //registeration
 router.post("/register",
-  fileUpload(2,allowedTypesMap).single("profilePic"),
+  fileUpload(5,allowedTypesMap).single("profilePic"),
   isValid(authRegisterSchema), authController.signUp);
 
 //login

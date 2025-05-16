@@ -73,7 +73,7 @@ export const isValid = (joiSchema, considerHeaders = false) => {
       copyReq = { authorization: req.headers.authorization };
     }
     if (req.files || req.file) {
-      copyReq.file = req.files || req.file;
+      copyReq.profilePic = req.files || req.file;
     }
 
     const { error } = joiSchema.validate(copyReq, { abortEarly: false });

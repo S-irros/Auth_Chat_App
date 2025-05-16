@@ -40,6 +40,7 @@ export const signUp = asyncHandler(async (req, res, next) => {
     return next(new Error("Please select your profile picture", { cause: 400 }));
   }
 
+  console.log("Received file:", req.file);
   const profilePic = await uploadToCloudinary(
     req.file,
     `${process.env.APP_NAME}/User/${random}`,
