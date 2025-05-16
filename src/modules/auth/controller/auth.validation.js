@@ -15,7 +15,7 @@ export const authRegisterSchema = joi
 
     password: generalFeilds.password.required(),
 
-    file: generalFeilds.file.required(),
+    profilePic: generalFeilds.file.required(),
 
   })
   .required();

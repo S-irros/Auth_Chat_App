@@ -68,7 +68,7 @@ export const signUp = asyncHandler(async (req, res, next) => {
     gender: gender.toLowerCase() === "male" ? 1 : 2,
     gradeLevelId,
     gradeLevelRef: gradeLevel._id,
-    subjects, // تخزين المواد (قايمة من String)
+    subjects,
     email,
     password: hashPassword,
     activationCode,
