@@ -37,10 +37,12 @@ export const generalFeilds = {
   }),
   otp: joi
     .string()
-    .alphanum()
-    .length(8)
+    .pattern(/^[0-9]{6}$/)
     .required()
-    .messages({ "string.length": "Invalid OTP code" }),
+    .messages({
+      "string.pattern.base": "OTP must be 6 digits",
+      "any.required": "OTP is required",
+    }),
 
     file: joi.object({
       size: joi.number().positive().required(),

@@ -1,9 +1,10 @@
 import otpGenerator from "otp-generator";
+
 export const otp = () => {
-  return otpGenerator.generate(process.env.OTP_LENGTH, {
+  return otpGenerator.generate(6, {
     digits: true,
-    lowerCaseAlphabets: true,
-    upperCaseAlphabets: true,
+    lowerCaseAlphabets: false,
+    upperCaseAlphabets: false,
     specialChars: false,
   });
 };
