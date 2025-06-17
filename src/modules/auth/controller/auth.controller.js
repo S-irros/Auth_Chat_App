@@ -137,7 +137,7 @@ export const logIn = asyncHandler(async (req, res, next) => {
   const user = await userModel
     .findOne({ email })
     .select(
-      "randomId name email password isDeleted isBlocked isConfirmed status availability gender role profilePic profilePicPublicId gradeLevelId subjects"
+      "randomId name email password isDeleted isBlocked isConfirmed status availability gender role profilePic profilePicPublicId gradeLevelId subjects scientificTrack" // أضف scientificTrack هنا
     );
 
   // Handle user not found or inactive accounts
