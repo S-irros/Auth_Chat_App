@@ -15,9 +15,8 @@ import { uploadToCloudinary } from "../../../utils/uploadHelper.js";
 import GradeLevel from "../../../../DB/models/gradeLevelModel.js";
 
 export const signUp = asyncHandler(async (req, res, next) => {
-  const { email, password, name, gender, gradeLevelId, scientificTrack } =
-    req.body;
-  const finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
+  const { email, password, name, gender, gradeLevelId, scientificTrack } = req.body;
+  let finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
 
   const existedUser = await userModel.findOne({ email });
   if (existedUser)
