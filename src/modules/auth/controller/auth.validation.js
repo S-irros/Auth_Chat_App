@@ -11,13 +11,16 @@ export const authRegisterSchema = joi
     gender: joi.string().valid("male", "female").default("male"),
     password: generalFeilds.password.required(),
     profilePic: generalFeilds.file.required(),
-    scientificTrack: generalFeilds.scientificTrack.when("gradeLevelId", {
-      is: 8321,
-      then: joi.number().allow(null).optional(),
-      otherwise: joi.number().required().messages({
-        "any.required": "Scientific track is required for grade 2 or 3",
+    scientificTrack: joi
+      .number()
+      .allow(null)
+      .when("gradeLevelId", {
+        is: 8321,
+        then: joi.number().allow(null).optional(),
+        otherwise: joi.number().required().messages({
+          "any.required": "Scientific track is required for grade 2 or 3",
+        }),
       }),
-    }),
     subjects: joi.array().items(joi.number()).optional(),
   })
   .required();

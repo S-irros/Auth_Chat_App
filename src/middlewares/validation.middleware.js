@@ -65,48 +65,34 @@ export const generalFeilds = {
   }),
 
   scientificTrack: joi
-    .string()
+    .number()
     .allow(null)
     .custom((value, helpers) => {
       const { gradeLevelId } = helpers.state.ancestors[0];
       if (!gradeLevelId) return value;
 
-      const trackMap = {
-        8321: null, // لا يحتاج تراك
-        5896: { Scientific: 8106, Literary: 3584 },
-        8842: {
-          "Scientific Sciences": 2994,
-          "Scientific Math": 1518,
-          Literary: 2813,
-        },
-      };
-
-      if (Number(gradeLevelId) === 8321 && value !== null) {
+      const gradeLevelNum = Number(gradeLevelId); // تأكد إن الـ gradeLevelId number
+      if (gradeLevelNum === 8321 && value !== null) {
         return helpers.message(
           "Scientific track not allowed for 1st secondary"
         );
       }
-      if ([5896, 8842].includes(Number(gradeLevelId)) && !value) {
+      if ([5896, 8842].includes(gradeLevelNum) && value === null) {
         return helpers.message(
           "Scientific track is required for 2nd or 3rd secondary"
         );
       }
-      if (Number(gradeLevelId) === 5896 && value && !trackMap[5896][value]) {
-        return helpers.message(
-          "Invalid track for 2nd secondary (must be Scientific or Literary)"
-        );
+      const validTracks = {
+        5896: [8106, 3584],
+        8842: [2994, 1518, 2813],
+      };
+      if (value !== null && !validTracks[gradeLevelNum]?.includes(value)) {
+        return helpers.message(`Invalid track for grade ${gradeLevelNum}`);
       }
-      if (Number(gradeLevelId) === 8842 && value && !trackMap[8842][value]) {
-        return helpers.message(
-          "Invalid track for 3rd secondary (must be Scientific Sciences, Scientific Math, or Literary)"
-        );
-      }
-      return trackMap[Number(gradeLevelId)]
-        ? trackMap[Number(gradeLevelId)][value]
-        : value;
+      return value;
     })
     .messages({
-      "string.base": "scientificTrack must be a string",
+      "number.base": "scientificTrack must be a number",
     }),
 
   gradeLevelId: joi.number().valid(8321, 5896, 8842).required().messages({
