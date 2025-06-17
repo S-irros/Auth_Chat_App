@@ -7,69 +7,104 @@ import { asyncHandler } from "../../../utils/errorHandling.js";
 import { otp, randomId } from "../../../utils/otpGenerator.js";
 import { generateToken } from "../../../utils/generateAndVerifyToken.js";
 import userModel from "../../../../DB/models/User.model.js";
+import Subject from "../../../../DB/models/subjectModel.js";
+import ScientificTrack from "../../../../DB/models/scientificTrackModel.js";
 import { activationMail } from "../../../utils/Emails/activationMail.js";
 import { emitter } from "../../../utils/eventEmitter.js";
 import { uploadToCloudinary } from "../../../utils/uploadHelper.js";
 import GradeLevel from "../../../../DB/models/gradeLevelModel.js";
 
-// registeration
 export const signUp = asyncHandler(async (req, res, next) => {
-  const { email, password, name, gender, gradeLevelId } = req.body;
+  const { email, password, name, gender, gradeLevelId, scientificTrack } =
+    req.body;
+  const finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
 
   const existedUser = await userModel.findOne({ email });
-  if (existedUser) {
+  if (existedUser)
     return next(new Error("Email already exists", { cause: 401 }));
-  }
 
-  if (!["male", "female"].includes(gender.toLowerCase())) {
+  if (!["male", "female"].includes(gender.toLowerCase()))
     return next(new Error("Gender must be 'male' or 'female'", { cause: 400 }));
-  }
 
   let random;
   let isUnique = false;
-
   while (!isUnique) {
     random = randomId();
-    const existRandomId = await userModel.exists({ randomId: random });
-    if (!existRandomId) {
-      isUnique = true;
-    }
+    if (!(await userModel.exists({ randomId: random }))) isUnique = true;
   }
 
-  if (!req.file) {
-    return next(new Error("Please select your profile picture", { cause: 400 }));
-  }
+  if (!req.file)
+    return next(
+      new Error("Please select your profile picture", { cause: 400 })
+    );
 
-  console.log("Received file:", req.file);
   const profilePic = await uploadToCloudinary(
     req.file,
     `${process.env.APP_NAME}/User/${random}`,
     `${random}profilePic`
   );
   const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
-
-  // Generate activation code
   const activationCode = crypto.randomBytes(64).toString("hex");
-
-  // Hash password
   const hashPassword = Hash({ plainText: password });
 
-  // جلب الـ gradeLevel والـ subjects
   const gradeLevel = await GradeLevel.findOne({ gradeLevelId });
-  if (!gradeLevel) {
+  if (!gradeLevel)
     return next(new Error("Invalid grade level", { cause: 404 }));
+
+  let finalSubjects = [];
+
+  if (gradeLevelId === 8321) {
+    // الصف الأول الثانوي: جيب المواد الموحدة
+    const gradeLevelData = await GradeLevel.findOne({ gradeLevelId }).select(
+      "subjects"
+    );
+    if (!gradeLevelData || gradeLevelData.subjects.length === 0)
+      return next(
+        new Error("No unified subjects found for 1st secondary", { cause: 404 })
+      );
+    finalSubjects = gradeLevelData.subjects;
+  } else if (gradeLevelId === 5896) {
+    // الصف الثاني الثانوي: علمي أو أدبي
+    if (!finalScientificTrack)
+      return next(
+        new Error("Scientific track is required for 2nd secondary", {
+          cause: 400,
+        })
+      );
+    const track = await ScientificTrack.findOne({
+      trackId: finalScientificTrack,
+      gradeLevelId,
+    });
+    if (!track)
+      return next(new Error("Invalid scientific track", { cause: 404 }));
+    finalScientificTrack = track.trackId; // للتأكيد
+    finalSubjects = track.subjects;
+  } else if (gradeLevelId === 8842) {
+    // الصف الثالث الثانوي: علمي علوم، رياضة، أو أدبي
+    if (!finalScientificTrack)
+      return next(
+        new Error("Scientific track is required for 3rd secondary", {
+          cause: 400,
+        })
+      );
+    const track = await ScientificTrack.findOne({
+      trackId: finalScientificTrack,
+      gradeLevelId,
+    });
+    if (!track)
+      return next(new Error("Invalid scientific track", { cause: 404 }));
+    finalScientificTrack = track.trackId; // للتأكيد
+    finalSubjects = track.subjects;
   }
 
-  const subjects = gradeLevel.subjects || []; // subjects هنا قايمة من String
-
-  // Create the user in the database
   const createUser = await userModel.create({
     randomId: random,
     name,
     gender: gender.toLowerCase() === "male" ? 1 : 2,
     gradeLevelId,
     gradeLevelRef: gradeLevel._id,
-    subjects,
+    scientificTrack: finalScientificTrack,
+    subjects: finalSubjects,
     email,
     password: hashPassword,
     activationCode,
@@ -77,15 +112,11 @@ export const signUp = asyncHandler(async (req, res, next) => {
     profilePicPublicId,
   });
 
-  // Send email asynchronously
   const protocol = req.protocol;
   const host = req.headers.host;
   const html = activationMail(activationCode, protocol, host);
 
-  emitter.emit("register", {
-    email,
-    html,
-  });
+  emitter.emit("register", { email, html });
 
   return res.status(201).json({
     message: "User added successfully. Please check your email for activation.",
@@ -151,6 +182,7 @@ export const logIn = asyncHandler(async (req, res, next) => {
       name: user.name,
       gradeLevelId: user.gradeLevelId,
       subjects: user.subjects,
+      scientificTrack: user.scientificTrack,
       status: user.status,
       availability: user.availability,
       gender: user.gender,
