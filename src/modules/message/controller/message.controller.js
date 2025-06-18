@@ -7,13 +7,20 @@ export const getMessages = asyncHandler(async (req, res, next) => {
   const userTwo = req.params.userId;
 
   if (!userOne || !userTwo) {
-    return next(new Error("Sender and Receiver IDs are required", { cause: 400 }));
+    return next(
+      new Error("Sender and Receiver IDs are required", { cause: 400 })
+    );
   }
 
   // تحقق من وجود الـ Token
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  let authHeader = req.headers["authorization"] || req.headers["Authorization"];
+  if (!authHeader) {
     return next(new Error("Authorization token is required", { cause: 401 }));
+  }
+
+  // إزالة Bearer إذا موجود
+  if (authHeader.startsWith("Bearer ")) {
+    authHeader = authHeader.replace("Bearer ", "");
   }
 
   // Fetch messages between the two users

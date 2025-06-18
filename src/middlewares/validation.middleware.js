@@ -58,7 +58,7 @@ export const generalFeilds = {
   }),
 
   headers: joi.object({
-    authorization: joi
+    Authorization: joi
       .string()
       .regex(/^([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/)
       .required(),
