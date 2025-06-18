@@ -9,11 +9,8 @@ export const auth = (accessRoles = []) => {
       return next(new Error("Authorization is required", { cause: 400 }));
     }
 
-    
-    const token = authorization.startsWith("Bearer ") ? authorization.split(" ")[1] : authorization;
-
     const decoded = verifyToken({
-      payload: token,
+      payload: authorization,
       signature: process.env.SIGNATURE,
     });
     if (!decoded?.id) {

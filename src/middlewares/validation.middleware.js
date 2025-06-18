@@ -98,37 +98,26 @@ export const generalFeilds = {
   }),
 };
 
-export const isValid = (joiSchema, options = { headers: false, params: false, query: false, body: true }) => {
+export const isValid = (
+  joiSchema,
+  options = { headers: false, params: false, query: false, body: true }
+) => {
   return (req, res, next) => {
     let copyReq = {};
 
-    if (options.body) {
-      copyReq = { ...copyReq, ...req.body };
-    }
-    if (options.params) {
-      copyReq = { ...copyReq, ...req.params };
-    }
-    if (options.query) {
-      copyReq = { ...copyReq, ...req.query };
-    }
+    if (options.body) copyReq = { ...copyReq, ...req.body };
+    if (options.params) copyReq = { ...copyReq, ...req.params };
+    if (options.query) copyReq = { ...copyReq, ...req.query };
     if (options.headers && req.headers?.authorization) {
-      let auth = req.headers.authorization;
-      if (auth.startsWith("Bearer ")) {
-        auth = auth.replace("Bearer ", "");
-      }
-      copyReq.Authorization = auth;
+      copyReq.Authorization = req.headers.authorization; // تأكيد النسخة
     }
 
-    if (req.files || req.file) {
-      copyReq.profilePic = req.files || req.file;
-    }
+    if (req.files || req.file) copyReq.profilePic = req.files || req.file;
 
-    if (copyReq.scientificTrack) {
+    if (copyReq.scientificTrack)
       copyReq.scientificTrack = Number(copyReq.scientificTrack);
-    }
-    if (copyReq.gradeLevelId) {
+    if (copyReq.gradeLevelId)
       copyReq.gradeLevelId = Number(copyReq.gradeLevelId);
-    }
 
     const { error } = joiSchema.validate(copyReq, { abortEarly: false });
     if (error) {
@@ -137,9 +126,9 @@ export const isValid = (joiSchema, options = { headers: false, params: false, qu
         status_code: 422,
         Error: error.details.map((detail) => detail.message).join(", "),
       });
-    } else {
-      req.body = copyReq; // ممكن تعدل هنا لو عايز تميز الـ params والـ body
-      return next();
     }
+    // إضافة الـ headers لـ req.body إذا كان مطلوب
+    if (options.headers) req.body = { ...req.body, ...copyReq };
+    return next();
   };
 };
