@@ -44,14 +44,15 @@ export const signUp = asyncHandler(async (req, res, next) => {
 
   let finalSubjects = [];
 
-  if (gradeLevelId === 8321) {
+  // جلب المواد من subjectRoutes بناءً على gradeLevelId وscientificTrackId
+  const subjectsResponse = await fetch(`https://exammatchingapp-production.up.railway.app/api/subjects?gradeLevelId=${gradeLevelId}${finalScientificTrack ? `&scientificTrackId=${finalScientificTrack}` : ''}`);
+  const subjectsData = await subjectsResponse.json();
+  if (subjectsData && subjectsData.length > 0) {
+    finalSubjects = subjectsData.map(sub => sub.subjectId);
+  } else if (gradeLevelId === 8321) {
     finalSubjects = gradeLevel.subjects.map(sub => Number(sub)).filter(sub => !isNaN(sub));
-  } else if ([5896, 8842].includes(gradeLevelId)) {
-    if (!finalScientificTrack) return next(new Error(`Scientific track required for grade ${gradeLevelId}`, { cause: 400 }));
-    const track = await ScientificTrack.findOne({ trackId: finalScientificTrack, gradeLevelId });
-    if (!track) return next(new Error("Invalid scientific track", { cause: 404 }));
-    finalScientificTrack = track.trackId;
-    finalSubjects = (track.subjects || []).map(sub => Number(sub));
+  } else if ([5896, 8842].includes(gradeLevelId) && !finalScientificTrack) {
+    return next(new Error(`Scientific track required for grade ${gradeLevelId}`, { cause: 400 }));
   }
 
   const createdUser = await userModel.create({
@@ -62,15 +63,7 @@ export const signUp = asyncHandler(async (req, res, next) => {
 
   const populatedUser = await userModel
     .findById(createdUser._id)
-    .populate({
-      path: "subjectsDetails",
-      model: "Subject",
-      select: "name"
-    })
     .select("-password -activationCode -otp -otpexp");
-
-  // رجّع subjects كـ array of numbers
-  populatedUser.subjects = finalSubjects;
 
   const protocol = req.protocol;
   const host = req.headers.host;
