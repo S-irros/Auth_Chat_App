@@ -35,13 +35,6 @@ userSchema.pre("find", function () {
   this.where({ isDeleted: false });
 });
 
-userSchema.virtual('trackDetails', {
-  ref: 'ScientificTrack',
-  localField: 'scientificTrack',
-  foreignField: 'trackId',
-  justOne: true,
-});
-
 userSchema.virtual("subjectsDetails", {
   ref: "Subject",
   localField: "subjects",  

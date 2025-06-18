@@ -25,8 +25,6 @@ export const signUp = asyncHandler(async (req, res, next) => {
   } = req.body;
   const gradeLevelId = Number(gradeLevelIdStr);
   let finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
-  console.log("Incoming scientificTrack from body:", scientificTrack);
-  console.log("finalScientificTrack after conversion:", finalScientificTrack);
 
   const existedUser = await userModel.findOne({ email });
   if (existedUser)
@@ -43,9 +41,7 @@ export const signUp = asyncHandler(async (req, res, next) => {
   }
 
   if (!req.file)
-    return next(
-      new Error("Please select your profile picture", { cause: 400 })
-    );
+    return next(new Error("Please select profile picture", { cause: 400 }));
 
   const profilePic = await uploadToCloudinary(
     req.file,
@@ -54,7 +50,6 @@ export const signUp = asyncHandler(async (req, res, next) => {
   );
   const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
   const activationCode = crypto.randomBytes(64).toString("hex");
-
   const hashPassword = Hash({ plainText: password });
 
   const gradeLevel = await GradeLevel.findOne({ gradeLevelId }).lean();
@@ -62,11 +57,10 @@ export const signUp = asyncHandler(async (req, res, next) => {
     return next(new Error("Invalid grade level", { cause: 404 }));
 
   let finalSubjects = [];
+  let trackDetails = null;
 
   if (gradeLevelId === 8321) {
-    finalSubjects = gradeLevel.subjects
-      .map((sub) => Number(sub))
-      .filter((sub) => !isNaN(sub));
+    finalSubjects = gradeLevel.subjects.map((sub) => Number(sub));
   } else if ([5896, 8842].includes(gradeLevelId)) {
     if (!finalScientificTrack)
       return next(
@@ -74,23 +68,19 @@ export const signUp = asyncHandler(async (req, res, next) => {
           cause: 400,
         })
       );
-
     const track = await ScientificTrack.findOne({
       trackId: finalScientificTrack,
       gradeLevelId,
     });
     if (!track)
       return next(new Error("Invalid scientific track", { cause: 404 }));
-
-    console.log("Found track:", track);
-    console.log("Subjects in track:", track.subjects);
-
     finalScientificTrack = track.trackId;
-    finalSubjects = (track.subjects || []).map((sub) => Number(sub));
-    console.log("Subjects to save (after map):", finalSubjects);
+    const subjectIds = track.subjects || [];
+    finalSubjects = await Subject.find({
+      subjectId: { $in: subjectIds },
+    }).lean(); // جيب objects
+    trackDetails = track;
   }
-
-  console.log("Subjects to save:", finalSubjects);
 
   const createdUser = await userModel.create({
     randomId: random,
@@ -99,7 +89,7 @@ export const signUp = asyncHandler(async (req, res, next) => {
     gradeLevelId,
     gradeLevelRef: gradeLevel._id,
     scientificTrack: finalScientificTrack,
-    subjects: finalSubjects,
+    subjects: finalSubjects.map((s) => s.subjectId),
     email,
     password: hashPassword,
     activationCode,
@@ -107,16 +97,11 @@ export const signUp = asyncHandler(async (req, res, next) => {
     profilePicPublicId,
   });
 
-  // ✨ اعمل populate للمواد بعد التسجيل
   const populatedUser = await userModel
     .findById(createdUser._id)
-    .populate({
-      path: "subjectsDetails",
-      model: "Subject",
-      strictPopulate: false, // ⭐ ده اللي يحل التضارب ده في الإصدارات الجديدة
-    })
-    .populate("trackDetails")
     .select("-password -activationCode -otp -otpexp");
+  populatedUser.trackDetails = trackDetails; // أضف يدويًا
+  populatedUser.subjects = finalSubjects; // رجّع objects
 
   const protocol = req.protocol;
   const host = req.headers.host;
@@ -128,7 +113,6 @@ export const signUp = asyncHandler(async (req, res, next) => {
     user: populatedUser,
   });
 });
-
 //====================================================================================================================//
 // log in
 
