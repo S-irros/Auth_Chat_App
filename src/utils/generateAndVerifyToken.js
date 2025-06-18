@@ -14,5 +14,6 @@ export const verifyToken = ({
   signature = process.env.SIGNATURE,
 } = {}) => {
   const decoded = jwt.verify(payload, signature);
+  console.log(decoded);
   return decoded;
 };
