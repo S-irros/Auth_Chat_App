@@ -60,14 +60,8 @@ export const generalFeilds = {
   headers: joi.object({
     authorization: joi
       .string()
-      .pattern(
-        /^Bearer\s+([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/
-      )
-      .required()
-      .messages({
-        "string.pattern.base":
-          "Invalid authorization format, must be 'Bearer <token>'",
-      }),
+      .regex(/^([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/)
+      .required(),
   }),
 
   scientificTrack: joi
