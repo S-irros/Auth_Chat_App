@@ -58,7 +58,7 @@ export const generalFeilds = {
   }),
 
   headers: joi.object({
-    Authorization: joi.string().required(), // بحرف كبير، بدون regex
+    Authorization: joi.string().required(),
   }),
 
   scientificTrack: joi
@@ -110,8 +110,9 @@ export const isValid = (joiSchema, considerHeaders = false) => {
       if (auth.startsWith("Bearer ")) {
         auth = auth.replace("Bearer ", "");
       }
-      copyReq = { Authorization: auth }; // بحرف كبير
+      copyReq.Authorization = auth;
     }
+
     if (req.files || req.file) {
       copyReq.profilePic = req.files || req.file;
     }
