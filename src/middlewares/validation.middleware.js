@@ -58,10 +58,7 @@ export const generalFeilds = {
   }),
 
   headers: joi.object({
-    Authorization: joi
-      .string()
-      .regex(/^([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/)
-      .required(),
+    Authorization: joi.string().required(), // بحرف كبير، بدون regex
   }),
 
   scientificTrack: joi
@@ -71,7 +68,7 @@ export const generalFeilds = {
       const { gradeLevelId } = helpers.state.ancestors[0];
       if (!gradeLevelId) return value;
 
-      const gradeLevelNum = Number(gradeLevelId); // تأكد إن الـ gradeLevelId number
+      const gradeLevelNum = Number(gradeLevelId);
       if (gradeLevelNum === 8321 && value !== null) {
         return helpers.message(
           "Scientific track not allowed for 1st secondary"
@@ -109,7 +106,11 @@ export const isValid = (joiSchema, considerHeaders = false) => {
       ...req.query,
     };
     if (req.headers?.authorization && considerHeaders) {
-      copyReq = { authorization: req.headers.authorization };
+      let auth = req.headers.authorization;
+      if (auth.startsWith("Bearer ")) {
+        auth = auth.replace("Bearer ", "");
+      }
+      copyReq = { Authorization: auth }; // بحرف كبير
     }
     if (req.files || req.file) {
       copyReq.profilePic = req.files || req.file;
@@ -117,7 +118,6 @@ export const isValid = (joiSchema, considerHeaders = false) => {
 
     console.log("Received Request Body:", copyReq);
 
-    // تحويل القيم لـ numbers إذا كانت strings
     if (copyReq.scientificTrack) {
       copyReq.scientificTrack = Number(copyReq.scientificTrack);
     }
