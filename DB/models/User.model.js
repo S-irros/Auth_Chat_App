@@ -9,7 +9,7 @@ const userSchema = new Schema(
     gradeLevelId: { type: Number, required: true },
     gradeLevelRef: { type: mongoose.Schema.Types.ObjectId, ref: "GradeLevel" },
     scientificTrack: { type: Number, default: null },
-    subjects: [{ type: Number, ref: 'Subject' }],
+    subjects: [{ type: Number }],
     password: { type: String, required: true },
     status: { type: String, default: "not Active", enum: ["Active", "not Active"] },
     availability: { type: String, default: "Offline", enum: ["Online", "Offline"] },
@@ -21,7 +21,7 @@ const userSchema = new Schema(
     profilePic: String,
     profilePicPublicId: String,
     totalPoints: { type: Number, default: 0 },
-    rank: { type: Number, default: 1 },
+    rank: { type: Number, default: 0 },
     activationCode: String,
     otp: String,
     otpexp: Date,
@@ -41,6 +41,14 @@ userSchema.virtual('trackDetails', {
   foreignField: 'trackId',
   justOne: true,
 });
+
+userSchema.virtual("subjectsDetails", {
+  ref: "Subject",
+  localField: "subjects",  
+  foreignField: "subjectId",
+  justOne: false,
+});
+
 
 const userModel = mongoose.models.User || model("User", userSchema);
 export default userModel;

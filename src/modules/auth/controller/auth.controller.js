@@ -15,8 +15,18 @@ import { uploadToCloudinary } from "../../../utils/uploadHelper.js";
 import GradeLevel from "../../../../DB/models/gradeLevelModel.js";
 
 export const signUp = asyncHandler(async (req, res, next) => {
-  const { email, password, name, gender, gradeLevelId, scientificTrack } = req.body;
+  const {
+    email,
+    password,
+    name,
+    gender,
+    gradeLevelId: gradeLevelIdStr,
+    scientificTrack,
+  } = req.body;
+  const gradeLevelId = Number(gradeLevelIdStr);
   let finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
+  console.log("Incoming scientificTrack from body:", scientificTrack);
+  console.log("finalScientificTrack after conversion:", finalScientificTrack);
 
   const existedUser = await userModel.findOne({ email });
   if (existedUser)
@@ -44,59 +54,45 @@ export const signUp = asyncHandler(async (req, res, next) => {
   );
   const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
   const activationCode = crypto.randomBytes(64).toString("hex");
+
   const hashPassword = Hash({ plainText: password });
 
-  const gradeLevel = await GradeLevel.findOne({ gradeLevelId });
+  const gradeLevel = await GradeLevel.findOne({ gradeLevelId }).lean();
   if (!gradeLevel)
     return next(new Error("Invalid grade level", { cause: 404 }));
 
   let finalSubjects = [];
 
   if (gradeLevelId === 8321) {
-    // الصف الأول الثانوي: جيب المواد الموحدة
-    const gradeLevelData = await GradeLevel.findOne({ gradeLevelId }).select(
-      "subjects"
-    );
-    if (!gradeLevelData || gradeLevelData.subjects.length === 0)
-      return next(
-        new Error("No unified subjects found for 1st secondary", { cause: 404 })
-      );
-    finalSubjects = gradeLevelData.subjects;
-  } else if (gradeLevelId === 5896) {
-    // الصف الثاني الثانوي: علمي أو أدبي
+    finalSubjects = gradeLevel.subjects
+      .map((sub) => Number(sub))
+      .filter((sub) => !isNaN(sub));
+  } else if ([5896, 8842].includes(gradeLevelId)) {
     if (!finalScientificTrack)
       return next(
-        new Error("Scientific track is required for 2nd secondary", {
+        new Error(`Scientific track required for grade ${gradeLevelId}`, {
           cause: 400,
         })
       );
+
     const track = await ScientificTrack.findOne({
       trackId: finalScientificTrack,
       gradeLevelId,
     });
     if (!track)
       return next(new Error("Invalid scientific track", { cause: 404 }));
-    finalScientificTrack = track.trackId; // للتأكيد
-    finalSubjects = track.subjects;
-  } else if (gradeLevelId === 8842) {
-    // الصف الثالث الثانوي: علمي علوم، رياضة، أو أدبي
-    if (!finalScientificTrack)
-      return next(
-        new Error("Scientific track is required for 3rd secondary", {
-          cause: 400,
-        })
-      );
-    const track = await ScientificTrack.findOne({
-      trackId: finalScientificTrack,
-      gradeLevelId,
-    });
-    if (!track)
-      return next(new Error("Invalid scientific track", { cause: 404 }));
-    finalScientificTrack = track.trackId; // للتأكيد
-    finalSubjects = track.subjects;
+
+    console.log("Found track:", track);
+    console.log("Subjects in track:", track.subjects);
+
+    finalScientificTrack = track.trackId;
+    finalSubjects = (track.subjects || []).map((sub) => Number(sub));
+    console.log("Subjects to save (after map):", finalSubjects);
   }
 
-  const createUser = await userModel.create({
+  console.log("Subjects to save:", finalSubjects);
+
+  const createdUser = await userModel.create({
     randomId: random,
     name,
     gender: gender.toLowerCase() === "male" ? 1 : 2,
@@ -111,17 +107,28 @@ export const signUp = asyncHandler(async (req, res, next) => {
     profilePicPublicId,
   });
 
+  // ✨ اعمل populate للمواد بعد التسجيل
+  const populatedUser = await userModel
+    .findById(createdUser._id)
+    .populate({
+      path: "subjectsDetails",
+      model: "Subject",
+      strictPopulate: false, // ⭐ ده اللي يحل التضارب ده في الإصدارات الجديدة
+    })
+    .populate("trackDetails")
+    .select("-password -activationCode -otp -otpexp");
+
   const protocol = req.protocol;
   const host = req.headers.host;
   const html = activationMail(activationCode, protocol, host);
-
   emitter.emit("register", { email, html });
 
   return res.status(201).json({
     message: "User added successfully. Please check your email for activation.",
-    user: createUser._id,
+    user: populatedUser,
   });
 });
+
 //====================================================================================================================//
 // log in
 
@@ -134,11 +141,9 @@ export const logIn = asyncHandler(async (req, res, next) => {
   }
 
   // Query user by either userName or email
-  const user = await userModel
-    .findOne({ email })
-    .select(
-      "randomId name email password isDeleted isBlocked isConfirmed status availability gender role profilePic profilePicPublicId gradeLevelId subjects scientificTrack" // أضف scientificTrack هنا
-    );
+  const user = await userModel.findOne({ email }).select(
+    "randomId name email password isDeleted isBlocked isConfirmed status availability gender role profilePic profilePicPublicId gradeLevelId subjects scientificTrack" // أضف scientificTrack هنا
+  );
 
   // Handle user not found or inactive accounts
   if (!user) {
