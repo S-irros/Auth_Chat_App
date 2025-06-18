@@ -1,7 +1,6 @@
 import messageModel from "../../../../DB/models/Message.model.js";
 import { asyncHandler } from "../../../utils/errorHandling.js";
 
-
 // 💬 **Get Messages Between Two Users**
 export const getMessages = asyncHandler(async (req, res, next) => {
   const userOne = req.user._id;
@@ -9,6 +8,12 @@ export const getMessages = asyncHandler(async (req, res, next) => {
 
   if (!userOne || !userTwo) {
     return next(new Error("Sender and Receiver IDs are required", { cause: 400 }));
+  }
+
+  // تحقق من وجود الـ Token
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next(new Error("Authorization token is required", { cause: 401 }));
   }
 
   // Fetch messages between the two users
@@ -19,8 +24,8 @@ export const getMessages = asyncHandler(async (req, res, next) => {
         { senderId: userTwo, receiverId: userOne },
       ],
     })
-    .sort({ createdAt: 1 }) // Fixes timestamps sorting issue
-    .select("_id senderId receiverId content createdAt"); // Limits fields for better performance
+    .sort({ createdAt: 1 })
+    .select("_id senderId receiverId content createdAt");
 
   if (!messages.length) {
     return res.status(200).json({
