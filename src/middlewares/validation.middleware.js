@@ -98,14 +98,20 @@ export const generalFeilds = {
   }),
 };
 
-export const isValid = (joiSchema, considerHeaders = false) => {
+export const isValid = (joiSchema, options = { headers: false, params: false, query: false, body: true }) => {
   return (req, res, next) => {
-    let copyReq = {
-      ...req.body,
-      ...req.params,
-      ...req.query,
-    };
-    if (req.headers?.authorization && considerHeaders) {
+    let copyReq = {};
+
+    if (options.body) {
+      copyReq = { ...copyReq, ...req.body };
+    }
+    if (options.params) {
+      copyReq = { ...copyReq, ...req.params };
+    }
+    if (options.query) {
+      copyReq = { ...copyReq, ...req.query };
+    }
+    if (options.headers && req.headers?.authorization) {
       let auth = req.headers.authorization;
       if (auth.startsWith("Bearer ")) {
         auth = auth.replace("Bearer ", "");
@@ -116,8 +122,6 @@ export const isValid = (joiSchema, considerHeaders = false) => {
     if (req.files || req.file) {
       copyReq.profilePic = req.files || req.file;
     }
-
-    console.log("Received Request Body:", copyReq);
 
     if (copyReq.scientificTrack) {
       copyReq.scientificTrack = Number(copyReq.scientificTrack);
@@ -134,7 +138,7 @@ export const isValid = (joiSchema, considerHeaders = false) => {
         Error: error.details.map((detail) => detail.message).join(", "),
       });
     } else {
-      req.body = copyReq;
+      req.body = copyReq; // ممكن تعدل هنا لو عايز تميز الـ params والـ body
       return next();
     }
   };

@@ -13,9 +13,9 @@ const router = Router();
 //get messages
 router.post(
   "/getMessages/:userId",
-  isValid(headersSchema, true),
+  isValid(headersSchema, { headers: true }),
   auth(["user"]),
-  isValid(getMessagesSchema),
+  isValid(getMessagesSchema, { params: true }), 
   messageController.getMessages
 );
 

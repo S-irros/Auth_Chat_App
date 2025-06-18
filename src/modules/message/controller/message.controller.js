@@ -7,20 +7,7 @@ export const getMessages = asyncHandler(async (req, res, next) => {
   const userTwo = req.params.userId;
 
   if (!userOne || !userTwo) {
-    return next(
-      new Error("Sender and Receiver IDs are required", { cause: 400 })
-    );
-  }
-
-  // تحقق من وجود الـ Token
-  let authHeader = req.headers["authorization"] || req.headers["Authorization"];
-  if (!authHeader) {
-    return next(new Error("Authorization token is required", { cause: 401 }));
-  }
-
-  // إزالة Bearer إذا موجود
-  if (authHeader.startsWith("Bearer ")) {
-    authHeader = authHeader.replace("Bearer ", "");
+    return next(new Error("Sender and Receiver IDs are required", { cause: 400 }));
   }
 
   // Fetch messages between the two users
@@ -31,8 +18,8 @@ export const getMessages = asyncHandler(async (req, res, next) => {
         { senderId: userTwo, receiverId: userOne },
       ],
     })
-    .sort({ createdAt: 1 })
-    .select("_id senderId receiverId content createdAt");
+    .sort({ createdAt: 1 }) // Fixes timestamps sorting issue
+    .select("_id senderId receiverId content createdAt"); // Limits fields for better performance
 
   if (!messages.length) {
     return res.status(200).json({
