@@ -35,6 +35,7 @@ userSchema.pre("find", function () {
   this.where({ isDeleted: false });
 });
 
+
 userSchema.virtual("subjectsDetails", {
   ref: "Subject",
   localField: "subjects",  

@@ -15,20 +15,12 @@ import { uploadToCloudinary } from "../../../utils/uploadHelper.js";
 import GradeLevel from "../../../../DB/models/gradeLevelModel.js";
 
 export const signUp = asyncHandler(async (req, res, next) => {
-  const {
-    email,
-    password,
-    name,
-    gender,
-    gradeLevelId: gradeLevelIdStr,
-    scientificTrack,
-  } = req.body;
+  const { email, password, name, gender, gradeLevelId: gradeLevelIdStr, scientificTrack } = req.body;
   const gradeLevelId = Number(gradeLevelIdStr);
   let finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
 
   const existedUser = await userModel.findOne({ email });
-  if (existedUser)
-    return next(new Error("Email already exists", { cause: 401 }));
+  if (existedUser) return next(new Error("Email already exists", { cause: 401 }));
 
   if (!["male", "female"].includes(gender.toLowerCase()))
     return next(new Error("Gender must be 'male' or 'female'", { cause: 400 }));
@@ -40,68 +32,45 @@ export const signUp = asyncHandler(async (req, res, next) => {
     if (!(await userModel.exists({ randomId: random }))) isUnique = true;
   }
 
-  if (!req.file)
-    return next(new Error("Please select profile picture", { cause: 400 }));
+  if (!req.file) return next(new Error("Please select profile picture", { cause: 400 }));
 
-  const profilePic = await uploadToCloudinary(
-    req.file,
-    `${process.env.APP_NAME}/User/${random}`,
-    `${random}profilePic`
-  );
+  const profilePic = await uploadToCloudinary(req.file, `${process.env.APP_NAME}/User/${random}`, `${random}profilePic`);
   const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
   const activationCode = crypto.randomBytes(64).toString("hex");
   const hashPassword = Hash({ plainText: password });
 
   const gradeLevel = await GradeLevel.findOne({ gradeLevelId }).lean();
-  if (!gradeLevel)
-    return next(new Error("Invalid grade level", { cause: 404 }));
+  if (!gradeLevel) return next(new Error("Invalid grade level", { cause: 404 }));
 
   let finalSubjects = [];
-  let trackDetails = null;
 
   if (gradeLevelId === 8321) {
-    finalSubjects = gradeLevel.subjects.map((sub) => Number(sub));
+    finalSubjects = gradeLevel.subjects.map(sub => Number(sub)).filter(sub => !isNaN(sub));
   } else if ([5896, 8842].includes(gradeLevelId)) {
-    if (!finalScientificTrack)
-      return next(
-        new Error(`Scientific track required for grade ${gradeLevelId}`, {
-          cause: 400,
-        })
-      );
-    const track = await ScientificTrack.findOne({
-      trackId: finalScientificTrack,
-      gradeLevelId,
-    });
-    if (!track)
-      return next(new Error("Invalid scientific track", { cause: 404 }));
+    if (!finalScientificTrack) return next(new Error(`Scientific track required for grade ${gradeLevelId}`, { cause: 400 }));
+    const track = await ScientificTrack.findOne({ trackId: finalScientificTrack, gradeLevelId });
+    if (!track) return next(new Error("Invalid scientific track", { cause: 404 }));
     finalScientificTrack = track.trackId;
-    const subjectIds = track.subjects || [];
-    finalSubjects = await Subject.find({
-      subjectId: { $in: subjectIds },
-    }).lean(); // جيب objects
-    trackDetails = track;
+    finalSubjects = (track.subjects || []).map(sub => Number(sub));
   }
 
   const createdUser = await userModel.create({
-    randomId: random,
-    name,
-    gender: gender.toLowerCase() === "male" ? 1 : 2,
-    gradeLevelId,
-    gradeLevelRef: gradeLevel._id,
-    scientificTrack: finalScientificTrack,
-    subjects: finalSubjects.map((s) => s.subjectId),
-    email,
-    password: hashPassword,
-    activationCode,
-    profilePic,
-    profilePicPublicId,
+    randomId: random, name, gender: gender.toLowerCase() === "male" ? 1 : 2,
+    gradeLevelId, gradeLevelRef: gradeLevel._id, scientificTrack: finalScientificTrack,
+    subjects: finalSubjects, email, password: hashPassword, activationCode, profilePic, profilePicPublicId
   });
 
   const populatedUser = await userModel
     .findById(createdUser._id)
+    .populate({
+      path: "subjectsDetails",
+      model: "Subject",
+      select: "name"
+    })
     .select("-password -activationCode -otp -otpexp");
-  populatedUser.trackDetails = trackDetails; // أضف يدويًا
-  populatedUser.subjects = finalSubjects; // رجّع objects
+
+  // رجّع subjects كـ array of numbers
+  populatedUser.subjects = finalSubjects;
 
   const protocol = req.protocol;
   const host = req.headers.host;
