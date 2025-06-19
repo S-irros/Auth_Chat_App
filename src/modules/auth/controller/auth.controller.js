@@ -15,12 +15,20 @@ import { uploadToCloudinary } from "../../../utils/uploadHelper.js";
 import GradeLevel from "../../../../DB/models/gradeLevelModel.js";
 
 export const signUp = asyncHandler(async (req, res, next) => {
-  const { email, password, name, gender, gradeLevelId: gradeLevelIdStr, scientificTrack } = req.body;
+  const {
+    email,
+    password,
+    name,
+    gender,
+    gradeLevelId: gradeLevelIdStr,
+    scientificTrack,
+  } = req.body;
   const gradeLevelId = Number(gradeLevelIdStr);
   let finalScientificTrack = scientificTrack ? Number(scientificTrack) : null;
 
   const existedUser = await userModel.findOne({ email });
-  if (existedUser) return next(new Error("Email already exists", { cause: 401 }));
+  if (existedUser)
+    return next(new Error("Email already exists", { cause: 401 }));
 
   if (!["male", "female"].includes(gender.toLowerCase()))
     return next(new Error("Gender must be 'male' or 'female'", { cause: 400 }));
@@ -32,33 +40,58 @@ export const signUp = asyncHandler(async (req, res, next) => {
     if (!(await userModel.exists({ randomId: random }))) isUnique = true;
   }
 
-  if (!req.file) return next(new Error("Please select profile picture", { cause: 400 }));
+  if (!req.file)
+    return next(new Error("Please select profile picture", { cause: 400 }));
 
-  const profilePic = await uploadToCloudinary(req.file, `${process.env.APP_NAME}/User/${random}`, `${random}profilePic`);
+  const profilePic = await uploadToCloudinary(
+    req.file,
+    `${process.env.APP_NAME}/User/${random}`,
+    `${random}profilePic`
+  );
   const profilePicPublicId = `${process.env.APP_NAME}/User/${random}/${random}profilePic`;
   const activationCode = crypto.randomBytes(64).toString("hex");
   const hashPassword = Hash({ plainText: password });
 
   const gradeLevel = await GradeLevel.findOne({ gradeLevelId }).lean();
-  if (!gradeLevel) return next(new Error("Invalid grade level", { cause: 404 }));
+  if (!gradeLevel)
+    return next(new Error("Invalid grade level", { cause: 404 }));
 
   let finalSubjects = [];
 
   // جلب المواد من subjectRoutes بناءً على gradeLevelId وscientificTrackId
-  const subjectsResponse = await fetch(`https://exammatchingapp-production.up.railway.app/api/subjects?gradeLevelId=${gradeLevelId}${finalScientificTrack ? `&scientificTrackId=${finalScientificTrack}` : ''}`);
+  const subjectsResponse = await fetch(
+    `https://exammatchingapp-production.up.railway.app/api/subjects?gradeLevelId=${gradeLevelId}${
+      finalScientificTrack ? `&scientificTrackId=${finalScientificTrack}` : ""
+    }`
+  );
   const subjectsData = await subjectsResponse.json();
   if (subjectsData && subjectsData.length > 0) {
-    finalSubjects = subjectsData.map(sub => sub.subjectId);
+    finalSubjects = subjectsData.map((sub) => sub.subjectId);
   } else if (gradeLevelId === 8321) {
-    finalSubjects = gradeLevel.subjects.map(sub => Number(sub)).filter(sub => !isNaN(sub));
+    finalSubjects = gradeLevel.subjects
+      .map((sub) => Number(sub))
+      .filter((sub) => !isNaN(sub));
   } else if ([5896, 8842].includes(gradeLevelId) && !finalScientificTrack) {
-    return next(new Error(`Scientific track required for grade ${gradeLevelId}`, { cause: 400 }));
+    return next(
+      new Error(`Scientific track required for grade ${gradeLevelId}`, {
+        cause: 400,
+      })
+    );
   }
 
   const createdUser = await userModel.create({
-    randomId: random, name, gender: gender.toLowerCase() === "male" ? 1 : 2,
-    gradeLevelId, gradeLevelRef: gradeLevel._id, scientificTrack: finalScientificTrack,
-    subjects: finalSubjects, email, password: hashPassword, activationCode, profilePic, profilePicPublicId
+    randomId: random,
+    name,
+    gender: gender.toLowerCase() === "male" ? 1 : 2,
+    gradeLevelId,
+    gradeLevelRef: gradeLevel._id,
+    scientificTrack: finalScientificTrack,
+    subjects: finalSubjects,
+    email,
+    password: hashPassword,
+    activationCode,
+    profilePic,
+    profilePicPublicId,
   });
 
   const populatedUser = await userModel
