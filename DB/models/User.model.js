@@ -14,7 +14,7 @@ const userSchema = new Schema(
     status: { type: String, default: "not Active", enum: ["Active", "not Active"] },
     availability: { type: String, default: "Offline", enum: ["Online", "Offline"] },
     gender: { type: Number, default: 1, enum: [1, 2] },
-    role: { type: String, default: "student", enum: ["student", "user"] },
+    role: { type: String, default: "user", enum: ["user"] },
     isConfirmed: { type: Boolean, default: false },
     isDeleted: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
