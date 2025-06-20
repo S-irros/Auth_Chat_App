@@ -169,6 +169,8 @@ export const logIn = asyncHandler(async (req, res, next) => {
       status: user.status,
       availability: user.availability,
       gender: user.gender,
+      rank: user.rank,
+      totalPoints: user.totalPoints,
       role: user.role,
       isConfirmed: user.isConfirmed,
       isDeleted: user.isDeleted,
